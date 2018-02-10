@@ -38,11 +38,13 @@ int main(int argc, char** argv){
   double Mjj_cut_off = 900; 
   double lead_cut_off = 150;
   double sub_cut_off = 60;
-  TString fileList = "fileLists/TagAndProbe_SingleMuon_Run2017F-PromptReco-v1_3.txt";
-
+  //TString fileList = "fileLists/SingleMuon.txt";
+  //TString fileList = "fileLists/SignalMC/TagAndProbe_forData_WJetsToLNu_TuneCUETP8M1_13TeV-madgraphMLM-pythia8_RunIISummer17MiniAOD-NZSFlatPU28to62_SUS01_92X_upgrade2017_realistic_v10-v1.txt";
+  TString fileList = "fileLists/TagAndProbe_forData_W2JetsToLNu_TuneCUETP8M1_13TeV-madgraphMLM-pythia8_RunIISummer17MiniAOD-92X_upgrade2017_realistic_v10-v1.txt";
+ 
   //ZeroBias sample L1
-  TString directory = "/data_CMS/cms/amendola/TauTagAndProbeNtuples/SingleMuon_Run2017F-PromptReco-v1_HLTfilt_08_02_18/";
-  
+  TString directory = "/data_CMS/cms/amendola/TauTagAndProbeNtuples/W2JetsToLNu_Summer17_MiniAOD_multipleTaus_HLTfilt_08_02_18/";
+   // TString directory = "/data_CMS/cms/amendola/TauTagAndProbeNtuples/WJetsToLNu_Summer17_MiniAOD_multipleTaus_HLTfilt_08_02_18/";
    
 
 
@@ -54,11 +56,11 @@ int main(int argc, char** argv){
   
   //  fOutNameVBF = "VBFEff_run2017H.root";
   // fOutNameVBF = directory+"WJetsToNuEff_2017.root";
-   fOutNameVBF = directory+"Data2017F_Eff_2017.root";
+   fOutNameVBF = directory+"W2JetsEff_2017.root";
 
   TChain * tInput;
 
-  tInput= new TChain ("Ntuplizer_noTagAndProbe/TagAndProbe");
+  tInput= new TChain ("Ntuplizer_noTagAndProbe_multipleTaus/TagAndProbe");
   appendFromFileList(tInput, fileList);
 
 
@@ -68,10 +70,9 @@ int main(int argc, char** argv){
   ULong64_t       EventNumber;
 
   Int_t           lumi;
-  Int_t           RunNumber;
-  Float_t tauPt=0;
-  Float_t tauEta=0;
-  Float_t tauPhi=0;
+  std::vector<float>  * tauPt=0;
+  std::vector<float>  * tauEta=0;
+  std::vector<float>  * tauPhi=0;
   Int_t           JetsNumber;
   std::vector<float>   *jets_px=0;
   std::vector<float>   *jets_py=0;
@@ -95,7 +96,6 @@ int main(int argc, char** argv){
   TBranch        *b_EventNumber;   //!
 
   TBranch        *b_lumi;   //!
-  TBranch        *b_RunNumber;   //!
   TBranch        *b_tauPt;   //!
   TBranch        *b_tauPhi;   //!
   TBranch        *b_tauEta;   //!
@@ -123,7 +123,6 @@ int main(int argc, char** argv){
   tInput->SetBranchAddress("EventNumber", &EventNumber, &b_EventNumber);
 
   tInput->SetBranchAddress("lumi", &lumi, &b_lumi);
-  tInput->SetBranchAddress("RunNumber", &RunNumber, &b_RunNumber);
   tInput->SetBranchAddress("tauPt", &tauPt, &b_tauPt);
   tInput->SetBranchAddress("tauEta", &tauEta, &b_tauEta);
   tInput->SetBranchAddress("tauPhi", &tauPhi, &b_tauPhi);
@@ -165,7 +164,7 @@ int main(int argc, char** argv){
   std::vector<object> jetL1;
 
   std::vector<TLorentzVector> jetOff;
-
+  std::vector<TLorentzVector> tauOff;
 
   std::vector<TLorentzVector> jetOffmatch;
 
@@ -177,20 +176,19 @@ int main(int argc, char** argv){
   std::vector< tuple<double, int,int> > mjj_off_match;
 
   
-  int Pass = 0;
 
 
-  for (Long64_t iEv = 0 ;true; ++iEv){
+
+  for (Long64_t iEv = 0 ;true ; ++iEv){
   
     int got = 0;
 
     got = tInput->GetEntry(iEv);
 
 
-    //if (RunNumber > 305044) continue;
+    
     if (got == 0) break;
-    Pass+=1;
-    //if (Pass > 10000000) break;
+   
 
 
     if (iEv%1000 == 0) cout << iEv << endl;
@@ -200,7 +198,7 @@ int main(int argc, char** argv){
 
     jetOff.clear();
     jetOffmatch.clear();
-   
+    tauOff.clear();
 
     mjj_on.clear();
     mjj_off.clear();
@@ -216,13 +214,16 @@ int main(int argc, char** argv){
 
 
 
-    TLorentzVector tau;
-    tau.SetPtEtaPhiM(tauPt, tauPhi, tauEta,0.);
 
 
+    for (long int itau = 0; itau < tauPt->size(); itau++){ //loop on jets offline
+      TLorentzVector tau;
+
+      tau.SetPtEtaPhiM(tauPt->at(itau), tauPhi->at(itau), tauEta->at(itau),0.);
+      tauOff.push_back(tau);
+    }
     
-
-
+    std::sort(tauOff.begin(),tauOff.end(),SortByPt);
     
     for (long int ijet = 0; ijet < jets_px->size(); ijet++){ //loop on jets offline
       TLorentzVector jet;
@@ -231,16 +232,16 @@ int main(int argc, char** argv){
       jet.SetPxPyPzE(jets_px->at(ijet),jets_py->at(ijet),jets_pz->at(ijet),jets_e->at(ijet));
       double jetPt  = jet.Pt();
       if(jetPt>sub_cut_off){
-
-
-	  if (tauPt>sub_cut_off){
-	    if(jet.DeltaR(tau)>0.2)   jetOff.push_back(jet);
+       	if(tauOff.size()>0){
+	  if (tauOff[0].Pt()>sub_cut_off){
+	    if(jet.DeltaR(tauOff[0])>0.2)   jetOff.push_back(jet);
 	    
 	  }else{
 	    jetOff.push_back(jet);
 	  }
-	
-	
+	}else{
+	  jetOff.push_back(jet);
+	}
 	for (long int iL1 = 0; iL1 < L1_jetEt->size(); iL1++){ //loop on jets emulated
 	  // selections
 	  double jetPt  = L1_jetEt->at(iL1);
@@ -248,19 +249,21 @@ int main(int argc, char** argv){
 	    TLorentzVector L1jet;
 	    L1jet.SetPtEtaPhiM(L1_jetEt->at(iL1),L1_jetEta->at(iL1),L1_jetPhi->at(iL1),0);
 	    if (L1jet.DeltaR(jet)<0.5){
-
-		if (tau.Pt()>sub_cut_off){
-		  if(jet.DeltaR(tau)>0.2)   jetOffmatch.push_back(jet);
+	      if(tauOff.size()>0){
+		if (tauOff[0].Pt()>sub_cut_off){
+		  if(jet.DeltaR(tauOff[0])>0.2)   jetOffmatch.push_back(jet);
 		  
 		}else{
 		  jetOffmatch.push_back(jet);
 		}
-
+	      }else{
+		jetOffmatch.push_back(jet);
+	      }
 	    }
 	  }
 	}
       }
-    }
+    }    
     
     
     

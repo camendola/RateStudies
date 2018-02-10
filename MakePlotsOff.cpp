@@ -30,22 +30,22 @@ int main(int argc, char** argv){
 
 
   //ZeroBias sample L1
-   TString directory = "/data_CMS/cms/amendola/EmuL1Ntuples/VBFSignal/";
-   
+  //TString directory = "/data_CMS/cms/amendola/TauTagAndProbeNtuples/VBFHTauTau_Summer17_MiniAOD_multipleTaus_04_02_18/";
+  TString directory = "/data_CMS/cms/amendola/TauTagAndProbeNtuples/GluGluHTauTau_Summer17_MiniAOD_multipleTaus_04_02_18/";
+  //TString directory = "/data_CMS/cms/amendola/TauTagAndProbeNtuples/DYToLL_Summer17_MiniAOD_multipleTaus_04_02_18/";
 
 
 
   
   TString fOutNameVBF;
   
+  bool emu = false;
   
+  fOutNameVBF = directory+"ggHsig_L1Plots.root";
+  //  TFile *file = TFile::Open(Form("%sNtuple_VBF_L1_RECO_WithMay2017_Jets_MultipleTaus_17_05_17_0.root",directory.Data()),"read");
+  TFile *file = TFile::Open(Form("%sGluGluHTauTau_Summer17_MiniAOD_multipleTaus_04_02_18.root",directory.Data()),"read");
   
-  fOutNameVBF = directory+"VBFSignal_L1Plots.root";
-  TFile *file = TFile::Open(Form("%sNtuple_VBF_L1_RECO_WithMay2017_Jets_MultipleTaus_17_05_17_0.root",directory.Data()),"read");
-
-
-  
-  TTree * tInput = (TTree*) file->Get("Ntuplizer_noTagAndProbe_multipleTaus_TagAndProbe");
+  TTree * tInput = (TTree*) file->Get("Ntuplizer_noTagAndProbe_multipleTaus/TagAndProbe");
   
   
   ULong64_t       EventNumber;
@@ -128,7 +128,7 @@ int main(int argc, char** argv){
   tInput->SetBranchAddress("jets_pz", &jets_pz, &b_jets_pz);
   tInput->SetBranchAddress("jets_e", &jets_e, &b_jets_e);
   
-  
+  if(emu){  
   tInput ->SetBranchAddress("l1tEmuEta", &L1Emu_tauEta, &b_L1Emu_tauEta);
   tInput ->SetBranchAddress("l1tEmuPhi", &L1Emu_tauPhi, &b_L1Emu_tauPhi);
   tInput ->SetBranchAddress("l1tEmuPt", &L1Emu_tauEt, &b_L1Emu_tauEt);
@@ -136,7 +136,7 @@ int main(int argc, char** argv){
   tInput ->SetBranchAddress("l1tEmuEtaJet", &L1Emu_jetEta, &b_L1Emu_jetEta);
   tInput ->SetBranchAddress("l1tEmuPhiJet", &L1Emu_jetPhi, &b_L1Emu_jetPhi);
   tInput ->SetBranchAddress("l1tEmuPtJet", &L1Emu_jetEt, &b_L1Emu_jetEt);   
-  
+  }
   tInput ->SetBranchAddress("l1tEta", &L1_tauEta, &b_L1_tauEta);
   tInput ->SetBranchAddress("l1tPhi", &L1_tauPhi, &b_L1_tauPhi);
   tInput ->SetBranchAddress("l1tPt", &L1_tauEt, &b_L1_tauEt);
@@ -167,7 +167,7 @@ int main(int argc, char** argv){
 
   TH1D* Eta_OffMatchEmu = new TH1D ("Eta_OffMatchEmu", "", 50,-5,5);
   TH1D* Eta_OffMatchUn = new TH1D ("Eta_OffMatchUn", "", 50,-5,5);
-
+  TH1D* DeltaEta_OffMatchUn = new TH1D ("DeltaEta_OffMatchUn", "", 50,0,10);
   TH1D* Eta_Mjj620_OffMatchEmu = new TH1D ("Eta_Mjj620_OffMatchEmu", "", 50,-5,5);
   TH1D* Eta_Mjj620_OffMatchUn = new TH1D ("Eta_Mjj620_OffMatchUn", "", 50,-5,5);
 
@@ -176,6 +176,9 @@ int main(int argc, char** argv){
   TH1D* Et_OffMatchUn = new TH1D ("Et_OffMatchUn", "", 100,25,125);
 
   TH1D* Mjj_Off = new TH1D ("Mjj_Off", "", 100,0,800);
+  TH1D* LeadJet_Off = new TH1D ("LeadJet_Off", "", 120,30,150);
+  TH1D* SubLeadJet_Off = new TH1D ("SubLeadJet_Off", "", 120,30,150);
+  TH1D* Mjj_OffMatchUn = new TH1D ("Mjj_OffMatchUn", "", 100,0,800);
 
   TH1D* Off_passVBF = new TH1D ("Off_passVBF", "", 100,30,130);
   TH1D* On_passVBF = new TH1D ("On_passVBF", "", 100,30,130);
@@ -248,15 +251,16 @@ int main(int argc, char** argv){
     mjj_off_matchEmu.clear();
     mjj_off_matchUn.clear();
     
-    for (long int iL1 = 0; iL1 < L1_jetEt->size(); iL1++){ //loop on jets emulated
+    for (long int iL1 = 0; iL1 < L1_jetEt->size(); iL1++){ //loop on jets unpacked
       // selections
       double jetPtUn  = L1_jetEt->at(iL1);
       if(jetPtUn>20.) jet20un.push_back(object(L1_jetEt->at(iL1),L1_jetEta->at(iL1),L1_jetPhi->at(iL1),-999)) ;
     }
-    
-    for (long int iL1emu = 0; iL1emu < L1Emu_jetEt->size(); iL1emu++){ //loop on jets unpacked
-      double jetPtEmu  = L1Emu_jetEt->at(iL1emu);
-      if(jetPtEmu>20.) jet20emu.push_back(object(L1Emu_jetEt->at(iL1emu),L1Emu_jetEta->at(iL1emu),L1Emu_jetPhi->at(iL1emu),-999)) ;
+    if (emu){
+      for (long int iL1emu = 0; iL1emu < L1Emu_jetEt->size(); iL1emu++){ //loop on jets emulated
+	double jetPtEmu  = L1Emu_jetEt->at(iL1emu);
+	if(jetPtEmu>20.) jet20emu.push_back(object(L1Emu_jetEt->at(iL1emu),L1Emu_jetEta->at(iL1emu),L1Emu_jetPhi->at(iL1emu),-999)) ;
+      }
     }
 
     for(int itau = 0; itau<tauPt->size(); itau++ ){
@@ -279,8 +283,10 @@ int main(int argc, char** argv){
 	  if (jet.DeltaR(tauOff[itau])>0.2){
 	    jetOff.push_back(jet);
 	    object::SortByDeltaR DeltaRJetOff(jetOff[ijet].Phi(),jetOff[ijet].Eta());
-	    std::sort(jet20emu.begin(),jet20emu.end(),DeltaRJetOff);
-	    if(jet20emu[0].DeltaRTLV(jetOff[ijet])<0.2) jetOff_matchEmu.push_back(jet) ;
+	    if(jet20emu.size()>0){
+	      std::sort(jet20emu.begin(),jet20emu.end(),DeltaRJetOff);
+	      if(jet20emu[0].DeltaRTLV(jetOff[ijet])<0.2) jetOff_matchEmu.push_back(jet) ;
+	    }
 	    std::sort(jet20un.begin(),jet20un.end(),DeltaRJetOff);
 	    if(jet20un[0].DeltaRTLV(jetOff[ijet])<0.2) jetOff_matchUn.push_back(jet) ;
 	  }
@@ -289,6 +295,7 @@ int main(int argc, char** argv){
     }
 
     std::sort(jet20un.begin(),jet20un.end());
+
     std::sort(jet20emu.begin(),jet20emu.end());
 
     std::sort(jetOff.begin(),jetOff.end(),SortByPt);
@@ -382,7 +389,9 @@ int main(int argc, char** argv){
 			      jetOff_matchUn[kJet].M()
 			      );
 	    TLorentzVector jetPair = ijet+kjet;
+	    if (jetOff_matchUn[kJet].Pt()>30){
 	    mjj_off_matchUn.push_back(make_tuple(jetPair.M(),iJet,kJet));
+	    }
 	    if(jetPair.M()>700) {
 	      SubJetMjj620_OffMatchUn->Fill(kjet.Pt());
 	      Eta_Mjj620_OffMatchUn->Fill(kjet.Eta());    
@@ -391,9 +400,17 @@ int main(int argc, char** argv){
 	  }
 	}
 	std::sort(mjj_off_matchUn.begin(),mjj_off_matchUn.end());
+
+	if(mjj_off_matchUn.size()>0){
+	  if (std::get<0>(*(mjj_off_matchUn.rbegin()))> 80){
+	    Mjj_OffMatchUn->Fill(std::get<0>(*(mjj_off_matchUn.rbegin())));
+	    DeltaEta_OffMatchUn->Fill(fabs(jetOff[std::get<1>(*(mjj_off_matchUn.rbegin()))].Eta()-jetOff[std::get<2>(*(mjj_off_matchUn.rbegin()))].Eta()));
+	    
+	  }
+	  
+	}
       }
-    }
-    if(jetOff_matchEmu.size()>=2){
+      if(jetOff_matchEmu.size()>=2){
       for (int iJet = 0; iJet <jetOff_matchEmu.size(); iJet++){
 	    
 	for (int kJet = iJet+1; kJet <jetOff_matchEmu.size(); kJet++){
@@ -445,22 +462,28 @@ int main(int argc, char** argv){
 			      jetOff[kJet].M()
 			      );
 	    TLorentzVector jetPair = ijet+kjet;
-	    if (jetOff[kJet].Pt()>45){
+	    if (jetOff[kJet].Pt()>30){
 	      mjj40_off.push_back(make_tuple(jetPair.M(),iJet,kJet));
 	      mjj40_off_sortbyPt.push_back(make_tuple(jetPair.M(),iJet,kJet,jetOff[iJet].Pt(),jetOff[kJet].Pt()));
 	      
 	    }
 	  }
-
 	}
-      }
+	}
+    
       std::sort(mjj40_off.begin(),mjj40_off.end());
       std::sort(mjj40_off_sortbyPt.begin(),mjj40_off_sortbyPt.end(),SortMjjByJetThreshold);
-      if(std::get<0>(*(mjj40_off.rbegin()))>200){ Mjj_Off->Fill(std::get<0>(*(mjj40_off.rbegin())));
+      if(mjj40_off.size()>0){
+	if (std::get<0>(*(mjj40_off.rbegin()))> 80){
+	Mjj_Off->Fill(std::get<0>(*(mjj40_off.rbegin())));
+	
 	DeltaEta->Fill(fabs(jetOff[std::get<1>(*(mjj40_off.rbegin()))].Eta()-jetOff[std::get<2>(*(mjj40_off.rbegin()))].Eta()));
 	Eta->Fill(jetOff[std::get<1>(*(mjj40_off.rbegin()))].Eta());
-
+	}
       }
+      LeadJet_Off->Fill(jetOff[0].Pt());
+      SubLeadJet_Off->Fill(jetOff[1].Pt());
+    }
     }
     for(int ijet = 0; ijet<jetOff_matchEmu.size();ijet++){
       Eta_OffMatchEmu->Fill(jetOff_matchEmu[ijet].Eta());
@@ -532,5 +555,5 @@ int main(int argc, char** argv){
   //VBF2Defficiency_XY->Write();
   //VBF2Defficiency_XZ->Write();
   fOutVBF->Write();
-
-}
+  cout<<"Output saved in "<<directory<<endl;
+  }
